@@ -1,0 +1,9 @@
+data/
+Cozy Disk Diary/
+build_out/
+installer_output/
+.venv/
+__pycache__/
+*.spec
+err.txt
+out.txt
