@@ -204,6 +204,29 @@ def diff_snaps(old, new):
     return {"total_delta": new["total"] - old["total"], "rows": rows[:200]}
 
 
+STALE_DAYS = 365
+STALE_MIN = 50 * MB
+
+
+def insights(snap):
+    """Cleanup hints from one snapshot: biggest files and big folders nothing has touched in a year."""
+    folders = snap["folders"]
+    files = {}
+    for v in folders.values():
+        for size, p in v["t"]:
+            files[p] = size
+    big = sorted(files.items(), key=lambda kv: -kv[1])[:8]
+    cutoff = time.time() - STALE_DAYS * 86400
+    stale = [p for p, v in folders.items() if v["s"] >= STALE_MIN and 0 < v["m"] < cutoff]
+    stale_set = set(stale)
+    # keep only the outermost stale folder so a parent and its children aren't both listed
+    stale = [p for p in stale if os.path.dirname(p) not in stale_set]
+    stale.sort(key=lambda p: -folders[p]["s"])
+    return {"root": snap["root"], "total": snap["total"],
+            "big_files": [{"path": p, "size": s} for p, s in big],
+            "stale": [{"path": p, "size": folders[p]["s"], "newest": folders[p]["m"]} for p in stale[:6]]}
+
+
 # ------------------------------------------------------------------- http
 def drives():
     out = []
@@ -264,6 +287,11 @@ class Handler(BaseHTTPRequestHandler):
             view = node_view(snap, path)
             self._json({"snap": snap_meta(sid), "node": view} if view else {"missing": True,
                                                                           "snap": snap_meta(sid)})
+        elif u.path == "/api/insights":
+            ids = snaps_for(q.get("root"))
+            if not ids:
+                return self._json({"empty": True})
+            self._json(insights(load(ids[-1])))
         elif u.path == "/api/changes":
             ids = snaps_for(q.get("root"))
             if len(ids) < 2:

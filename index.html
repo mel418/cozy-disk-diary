@@ -84,6 +84,42 @@ td.r,th.r{text-align:right;white-space:nowrap}
 .toast{color:#b0524a;font-weight:800;margin-top:8px}
 .prog{background:repeating-linear-gradient(45deg,var(--pink),var(--pink) 10px,var(--cream) 10px,var(--cream) 20px);background-size:200% 100%;animation:slide 1s linear infinite;width:100%;height:100%}
 @keyframes slide{to{background-position:28px 0}}
+.fold>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px}
+.fold>summary::-webkit-details-marker{display:none}
+.fold>summary::before{content:'▾';font-weight:800;transition:transform .15s}
+.fold:not([open])>summary::before{transform:rotate(-90deg)}
+.fold>summary h2{margin:0;flex:1}
+.fold[open]>summary{margin-bottom:10px}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px;border-radius:8px}
+input[type=text]:focus-visible,select:focus-visible{outline-color:var(--lav)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.toolbar input[type=text]{min-width:160px;max-width:260px}
+select.btn{box-shadow:none;padding:5px 12px}
+.seg{display:inline-flex;border:2px solid var(--line);border-radius:999px;overflow:hidden}
+.seg button{font:inherit;font-weight:800;font-size:13px;border:0;background:var(--paper);color:var(--brown);padding:4px 12px;cursor:pointer}
+.seg button.on{background:var(--lav);color:var(--ink)}
+.seg button+button{border-left:2px solid var(--line)}
+.fchips{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px}
+.fchip{font:inherit;font-size:12px;font-weight:800;color:var(--ink);border:2px solid var(--line);border-radius:999px;padding:1px 10px;cursor:pointer}
+.fchip.on{box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--line)}
+.kids.gridv{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.kids.gridv .kid{margin:0}
+.kids.gridv .kid .top{flex-direction:column;gap:2px}
+.kids.listv .kid{padding:7px 12px;margin-bottom:6px}
+.kid .bar{height:10px}
+.kid .ic{font-size:20px}
+.tile{display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--rule)}
+.tile:last-child{border-bottom:0}
+.tile .ft{flex:none;width:34px;height:34px;border:2px solid var(--line);border-radius:10px;display:grid;place-items:center;font-size:18px}
+.tile .nm{flex:1;min-width:0}
+.tile .nm b,.tile .nm small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn.tiny{padding:1px 9px;font-size:12px;background:var(--blue);box-shadow:0 2px 0 var(--line);flex:none}
+.health{display:flex;align-items:center;gap:8px;font-weight:800}
+.banner{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fde0dc;color:#7a3029;border:2px solid #b0524a;border-radius:14px;padding:10px 14px;margin-bottom:14px;font-weight:800}
+:root[data-theme="dark"] .banner{background:#4a2b2b;color:#f6c9c4}
+.snackbar{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--brown);color:var(--paper);padding:8px 18px;border-radius:999px;font-weight:800;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9}
+.snackbar.show{opacity:1}
+.skel{height:64px;border-radius:14px;margin-bottom:10px;background:linear-gradient(90deg,var(--cream),var(--paper),var(--cream));background-size:200% 100%;animation:slide 1.2s linear infinite}
 @media(max-width:820px){.body{grid-template-columns:1fr}nav{flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:2px solid var(--line)}nav .tip{display:none}.cols{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -112,8 +148,19 @@ const sgn = d => (d>0?'+':d<0?'−':'')+fmt(d);
 const ago = t => { if(!t) return 'unknown'; const d=(Date.now()/1000-t)/86400; return d<1?'today':d<2?'yesterday':d<60?Math.round(d)+' days ago':d<700?Math.round(d/30)+' months ago':Math.round(d/365)+' years ago'; };
 const when = t => new Date(t*1000).toLocaleString([], {dateStyle:'medium',timeStyle:'short'});
 const api = (u,body) => fetch(u, body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:undefined).then(r=>r.json());
+const ICONS = {pictures:'🖼️',videos:'🎬',music:'🎵',documents:'📄',code:'💻',archives:'📦',apps:'⚙️',other:'📎'};
+const catOf = p => { const e=(p.match(/\.[^.\\\/]+$/)||[''])[0].toLowerCase(); return CAT_EXT[e]||'other'; };
+const CAT_EXT = {pictures:'.jpg .jpeg .png .gif .bmp .webp .heic .svg .tif .tiff .raw .psd .ico',videos:'.mp4 .mkv .mov .avi .wmv .flv .webm .m4v',music:'.mp3 .wav .flac .aac .ogg .m4a .wma',documents:'.pdf .doc .docx .xls .xlsx .ppt .pptx .txt .md .csv .rtf .odt .epub',code:'.py .js .ts .html .css .json .java .c .cpp .h .cs .go .rs .php .rb .sh .bat .ps1 .xml .yml .yaml',archives:'.zip .rar .7z .tar .gz .iso .bz2 .cab',apps:'.exe .dll .msi .sys .lib .pdb .apk'};
+Object.assign(CAT_EXT, Object.fromEntries(Object.entries(CAT_EXT).flatMap(([c,s])=>s.split(' ').map(e=>[e,c]))));
+let snackT;
+function snack(msg){ let s=$('#snack'); if(!s){ s=document.createElement('div'); s.id='snack'; s.className='snackbar'; s.setAttribute('role','status'); document.body.appendChild(s); }
+  s.textContent=msg; s.classList.add('show'); clearTimeout(snackT); snackT=setTimeout(()=>s.classList.remove('show'),1800); }
+function copyPath(p){ (navigator.clipboard?navigator.clipboard.writeText(p):Promise.reject()).then(()=>snack('Path copied ♡'),()=>snack('Couldn\'t copy — select it by hand')); }
+function fileName(p){ return p.split(/[\\\/]/).filter(Boolean).pop()||p; }
 
 let tab='home', root=null, path=null, polling=null;
+const view = {mode:'list', sort:'size', q:'', cat:null, more:false};
+try{ view.mode=localStorage.getItem('viewmode')||'list'; }catch(e){}
 const hist = {drives:[],home:''};
 
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => go(b.dataset.tab));
@@ -134,9 +181,14 @@ function greet(){ const h=new Date().getHours(); return h<12?'Good morning':h<18
 
 async function render(){
   const m = $('#main');
-  if(tab==='home') return renderHome(m);
-  if(tab==='folders') return renderFolders(m);
-  if(tab==='changes') return renderChanges(m);
+  try{
+    if(tab==='home') return await renderHome(m);
+    if(tab==='folders') return await renderFolders(m);
+    if(tab==='changes') return await renderChanges(m);
+  }catch(e){
+    m.innerHTML=`<div class="banner" role="alert">😿 Couldn't reach the diary just now. <button class="btn small" id="retry">Try again</button></div>`;
+    $('#retry').onclick=render;
+  }
 }
 
 /* ---------------------------------------------------------------- home */
@@ -158,9 +210,24 @@ async function renderHome(m){
   const badges = [
     [h.length>=1,'🌱 First scan'],[h.length>=3,'📚 Three diary entries'],[h.length>=7,'🏆 Diary keeper'],
   ].map(([on,t])=>`<span class="chip" style="background:${on?'var(--mint)':'#eee;opacity:.5'}">${t}</span>`).join('');
+  let ins=null;
+  if(root){ try{ ins=await api('/api/insights?root='+encodeURIComponent(root)); }catch(e){} }
+  let tidy='';
+  if(ins && !ins.empty && (ins.big_files.length||ins.stale.length)){
+    const bf=ins.big_files.slice(0,5).map(f=>`<div class="tile"><span class="ft" style="background:${COLORS[catOf(f.path)]};color:var(--ink)">${ICONS[catOf(f.path)]}</span>
+      <div class="nm"><b title="${esc(f.path)}">${esc(fileName(f.path))}</b><small>${esc(f.path)}</small></div><b>${fmt(f.size)}</b>
+      <button class="btn tiny" data-copy="${esc(f.path)}" aria-label="Copy path of ${esc(fileName(f.path))}">Copy path</button></div>`).join('');
+    const st=ins.stale.map(f=>`<div class="tile"><span class="ft" style="background:var(--lav);color:var(--ink)">🧺</span>
+      <div class="nm"><b title="${esc(f.path)}">${esc(fileName(f.path))}</b><small>Untouched for ${ago(f.newest).replace(' ago','')} · ${esc(f.path)}</small></div><b>${fmt(f.size)}</b>
+      <button class="btn tiny" data-open="${esc(f.path)}">Show 🗂</button></div>`).join('');
+    tidy=`<div class="card mint"><h2>🧹 Tidy-up ideas <small style="font-weight:600">from your latest scan of ${esc(ins.root)}</small></h2>
+      <div class="grid2"><div><b>🐘 Biggest files</b>${bf||'<p class="sub">None found.</p>'}</div>
+      <div><b>🧺 Forgotten for a year+</b>${st||'<p class="sub">Nothing big has been forgotten — nice! ✨</p>'}</div></div>
+      <p class="sub" style="margin:8px 0 0"><small>These are just suggestions — this app never deletes anything. Use “Show” to peek in Explorer and decide yourself.</small></p></div>`;
+  }
   m.innerHTML = `<h1>${greet()}, lovely ♡</h1>
     <p class="sub">Let's see where your space went today.</p>
-    <div class="grid2">${driveCards}</div>
+    <div class="grid2">${driveCards}</div>${tidy}
     <div class="card blue"><h2>🔍 Scan a spot</h2>
       <p class="sub" style="margin-bottom:10px">Pick a drive or folder to look through. Bigger places take longer — your home folder is a great start.</p>
       <div class="row" id="quick"></div>
@@ -172,7 +239,15 @@ async function renderHome(m){
   const q=$('#quick');
   [...d.drives.map(x=>x.path),d.home,d.home+'\\Downloads',d.home+'\\Documents',d.home+'\\Desktop',d.home+'\\Pictures'].forEach(p=>{
     const b=document.createElement('button'); b.className='btn small'; b.textContent=p.length>22?'…'+p.slice(-20):p; b.onclick=()=>$('#scanpath').value=p; q.appendChild(b);});
-  $('#scanbtn').onclick = async()=>{ const r=await api('/api/scan',{path:$('#scanpath').value.trim()}); if(!r.ok) $('#scanmsg').innerHTML=`<div class="toast">${esc(r.msg)}</div>`; poll(); };
+  m.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>copyPath(b.dataset.copy));
+  m.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>api('/api/open',{path:b.dataset.open}).then(r=>{ if(!r.ok) snack('That folder can\'t be opened'); }));
+  const doScan = async()=>{
+    const r=await api('/api/scan',{path:$('#scanpath').value.trim()});
+    if(!r.ok){ $('#scanmsg').innerHTML=`<div class="banner" role="alert" style="margin:10px 0 0">${esc(r.msg)}. <button class="btn small" id="rescan">Retry</button></div>`; $('#rescan').onclick=doScan; return; }
+    poll();
+  };
+  $('#scanbtn').onclick = doScan;
+  $('#scanpath').onkeydown = e=>{ if(e.key==='Enter') doScan(); };
   if(st.running) poll();
 }
 function poll(){
@@ -186,7 +261,7 @@ function poll(){
         $('#scanbtn') && ($('#scanbtn').disabled=true); }
     } else {
       clearInterval(polling);
-      if(st.error && box) box.innerHTML=`<div class="toast">Oops: ${esc(st.error)}</div>`;
+      if(st.error && box){ box.innerHTML=`<div class="banner" role="alert" style="margin:10px 0 0">Oops: ${esc(st.error)} <button class="btn small" id="rescan">Retry</button></div>`; $('#scanbtn')&&($('#scanbtn').disabled=false); $('#rescan').onclick=()=>$('#scanbtn').click(); }
       else if(st.root){ root=st.root; path=st.root; if(tab==='home') box && (box.innerHTML=`<div class="card mint" style="margin:12px 0 0">✨ All done! <button class="btn small" onclick="go('folders')">See my folders</button></div>`), $('#scanbtn') && ($('#scanbtn').disabled=false), setTimeout(()=>tab==='home'&&renderHome($('#main')).then(()=>{}),0); }
     }
   };
@@ -207,33 +282,61 @@ async function renderFolders(m){
   const parts=[]; let p=n.path;
   while(true){ parts.unshift(p); if(p.toLowerCase()===root.toLowerCase()) break; const up=p.replace(/[\\\/][^\\\/]*$/,''); if(!up||up===p||up.length<root.length) break; p=up; }
   const crumbs=parts.map((c,i)=>`<button data-p="${esc(c)}">${esc((i===0?'🏠 ':'')+(c.split(/[\\\/]/).filter(Boolean).pop()||c))}</button>`).join(' › ');
-  const kids = n.children.slice(0,40).map(c=>{
-    const pct = n.size?c.size/n.size*100:0;
-    return `<button class="kid" data-p="${esc(c.path)}"><div class="top"><span>📁 ${esc(c.name)}</span><span>${fmt(c.size)}</span></div>
-      <div class="bar" style="margin:6px 0 2px"><i style="width:${pct}%;background:var(--peach)"></i></div><small>${pct.toFixed(1)}% of this folder · ${c.files.toLocaleString()} files</small></button>`;
-  }).join('') || '<p class="sub">No big sub-folders here — it\'s just files ✿</p>';
   const cats = Object.entries(n.cats).sort((a,b)=>b[1].s-a[1].s);
+  if(view.cat && !n.cats[view.cat]) view.cat=null;
+  const kidsHtml = () => {
+    const q=view.q.trim().toLowerCase();
+    let list=n.children.filter(c=>(!q||c.name.toLowerCase().includes(q)) && (!view.cat||c.cats[view.cat]));
+    list.sort(view.sort==='name'?(a,b)=>a.name.localeCompare(b.name):view.sort==='files'?(a,b)=>b.files-a.files:(a,b)=>(view.cat?(b.cats[view.cat]||0)-(a.cats[view.cat]||0):b.size-a.size));
+    const total=list.length; if(!view.more) list=list.slice(0,40);
+    if(!total) return `<p class="sub">${n.children.length?'No folders match — try clearing the search or filter ✿':'No big sub-folders here — it\'s just files ✿'}</p>`;
+    const items=list.map(c=>{
+      const pct = n.size?c.size/n.size*100:0;
+      const segs=Object.entries(c.cats).sort((a,b)=>b[1]-a[1]).map(([k,s])=>`<i style="width:${c.size?s/c.size*100:0}%;background:${COLORS[k]}" title="${NAMES[k]}: ${fmt(s)}"></i>`).join('');
+      return `<button class="kid" data-p="${esc(c.path)}" title="${esc(c.path)}"><div class="top"><span><span class="ic">📁</span> ${esc(c.name)}</span><span>${fmt(c.size)}</span></div>
+        <div class="bar" style="margin:6px 0 2px;width:${Math.max(c.size/(n.children[0]?.size||1)*100,10)}%" aria-hidden="true">${segs}</div><small>${pct.toFixed(1)}% of this folder · ${c.files.toLocaleString()} files</small></button>`;
+    }).join('');
+    return items + (total>list.length?`<button class="btn small" id="showmore">Show all ${total} folders</button>`:'');
+  };
   const top = cats[0];
   const summary = n.size===0?'This folder is empty.':
     `Mostly <b>${NAMES[top[0]].toLowerCase()}</b> (${fmt(top[1].s)} of ${fmt(n.size)}). Holds ${n.files.toLocaleString()} files. Something in here changed <b>${ago(n.newest)}</b>.`;
   const stack = cats.map(([k,v])=>`<i style="width:${n.size?v.s/n.size*100:0}%;background:${COLORS[k]}" title="${NAMES[k]}"></i>`).join('');
   const rows = cats.map(([k,v])=>`<tr><td><span class="dot" style="background:${COLORS[k]}"></span>${NAMES[k]}</td><td class="r">${v.n.toLocaleString()} files</td><td class="r"><b>${fmt(v.s)}</b></td></tr>`).join('');
-  const tops = n.top.map(t=>`<tr><td class="path">${esc(t.path.slice(n.path.length).replace(/^[\\\/]/,'')||t.path)}</td><td class="r"><b>${fmt(t.size)}</b></td></tr>`).join('');
+  const tops = n.top.map(t=>{ const k=catOf(t.path); return `<div class="tile"><span class="ft" style="background:${COLORS[k]};color:var(--ink)" title="${NAMES[k]}">${ICONS[k]}</span>
+    <div class="nm"><b title="${esc(t.path)}">${esc(fileName(t.path))}</b><small>${esc(t.path.slice(n.path.length).replace(/^[\\\/]/,'')||t.path)}</small></div><b>${fmt(t.size)}</b>
+    <button class="btn tiny" data-copy="${esc(t.path)}" aria-label="Copy path of ${esc(fileName(t.path))}">Copy</button></div>`; }).join('');
+  const fchips = cats.map(([k,v])=>`<button class="fchip ${view.cat===k?'on':''}" data-cat="${k}" style="background:${COLORS[k]}" aria-pressed="${view.cat===k}">${ICONS[k]} ${NAMES[k]}</button>`).join('');
   m.innerHTML = `<div class="row" style="justify-content:space-between"><h1 style="margin:0">My Folders</h1>
       <select id="rootsel" class="btn small" style="max-width:260px">${roots.map(x=>`<option ${x===root?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
     <p class="sub">Scanned ${when(r.snap.time)} · tap a folder to peek inside</p>
-    <div class="crumbs">${crumbs}</div>
-    <div class="cols"><div>${kids}</div>
+    <div class="crumbs" role="group" aria-label="Folder path">${crumbs}</div>
+    <div class="cols"><div>
+      <div class="toolbar"><input type="text" id="fq" placeholder="🔍 Search folders…" aria-label="Search folders" value="${esc(view.q)}">
+        <select id="fsort" class="btn small" aria-label="Sort folders"><option value="size">Biggest first</option><option value="files">Most files</option><option value="name">A → Z</option></select>
+        <div class="seg" role="group" aria-label="View"><button data-mode="list" class="${view.mode==='list'?'on':''}">☰ List</button><button data-mode="gridv" class="${view.mode==='gridv'?'on':''}">▦ Grid</button></div></div>
+      <div class="fchips" aria-label="Filter by file type">${fchips}</div>
+      <div id="kids" class="kids ${view.mode==='gridv'?'gridv':'listv'}">${kidsHtml()}</div></div>
       <div><div class="card lav"><h2 class="pixel big" style="margin:0">${esc(n.name)}</h2>
         <div class="big pixel" style="color:var(--brown)">${fmt(n.size)}</div><p style="margin:4px 0 10px">${summary}</p>
         <div class="bar">${stack}</div>
         <table style="margin-top:8px">${rows}</table>
         <div class="row" style="margin-top:10px"><button class="btn small" id="openbtn">Show in Explorer 🗂</button></div></div>
-        ${n.top.length?`<div class="card mint"><h2>🐘 Biggest files</h2><table>${tops}</table></div>`:''}
+        ${n.top.length?`<div class="card mint"><h2>🐘 Biggest files</h2>${tops}</div>`:''}
         ${n.loose>0?`<div class="card cream"><small>${fmt(n.loose)} sits loose in this folder (files directly here and tiny sub-folders).</small></div>`:''}</div></div>`;
-  m.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{path=b.dataset.p;renderFolders(m);});
+  const wire = () => {
+    m.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{path=b.dataset.p;view.q='';view.more=false;renderFolders(m);});
+    const sm=$('#showmore'); if(sm) sm.onclick=()=>{view.more=true;redraw();};
+  };
+  const redraw = () => { $('#kids').innerHTML=kidsHtml(); wire(); };
+  wire();
+  m.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>copyPath(b.dataset.copy));
+  $('#fq').oninput=e=>{view.q=e.target.value;redraw();};
+  $('#fsort').value=view.sort; $('#fsort').onchange=e=>{view.sort=e.target.value;redraw();};
+  m.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{view.mode=b.dataset.mode;try{localStorage.setItem('viewmode',view.mode);}catch(e){}renderFolders(m);});
+  m.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{view.cat=view.cat===b.dataset.cat?null:b.dataset.cat;renderFolders(m);});
   $('#rootsel').onchange=e=>{root=e.target.value;path=root;renderFolders(m);};
-  $('#openbtn').onclick=()=>api('/api/open',{path:n.path});
+  $('#openbtn').onclick=()=>api('/api/open',{path:n.path}).then(r=>{ if(!r.ok) snack('That folder can\'t be opened'); });
 }
 
 /* -------------------------------------------------------------- changes */
@@ -252,14 +355,14 @@ async function renderChanges(m){
   else {
     const rows = r.rows.map(x=>`<tr><td><span class="chip" style="background:${x.delta>0?'var(--pink)':'var(--mint)'}">${x.kind}</span></td>
       <td class="path">${esc(x.path)}</td><td class="r ${x.delta>0?'up':'down'}"><b>${sgn(x.delta)}</b></td></tr>`).join('') || '<tr><td>Nothing changed by more than 1 MB — so peaceful ☁️</td></tr>';
-    changes=`<div class="card pink"><h2>What changed since ${when(r.old.time)}?</h2>
+    changes=`<details class="card pink fold" open><summary><h2>What changed since ${when(r.old.time)}? <small>(${r.rows.length})</small></h2></summary>
       <p>Total went from <b>${fmt(r.old.total)}</b> to <b>${fmt(r.new.total)}</b> (<b class="${r.total_delta>0?'up':'down'}">${sgn(r.total_delta)}</b>)</p>
-      <table>${rows}</table><p class="sub" style="margin-top:8px"><small>Only changes over 1 MB are listed, and I show the specific folder responsible.</small></p></div>`;
+      <table>${rows}</table><p class="sub" style="margin-top:8px"><small>Only changes over 1 MB are listed, and I show the specific folder responsible.</small></p></details>`;
   }
   m.innerHTML = `<div class="row" style="justify-content:space-between"><h1 style="margin:0">Change Log</h1>
       <select id="rootsel" class="btn small" style="max-width:260px">${roots.map(x=>`<option ${x===root?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
     <p class="sub">A diary of every scan, and what changed in between.</p>${changes}
-    <div class="card blue"><h2>📜 Scan history</h2><table><tr><th>When</th><th class="r">Total</th><th class="r">Change</th></tr>${entries}</table></div>`;
+    <details class="card blue fold" open><summary><h2>📜 Scan history <small>(${mine.length})</small></h2></summary><table><tr><th>When</th><th class="r">Total</th><th class="r">Change</th></tr>${entries}</table></details>`;
   $('#rootsel').onchange=e=>{root=e.target.value;path=root;renderChanges(m);};
 }
 
