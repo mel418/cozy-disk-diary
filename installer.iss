@@ -1,6 +1,6 @@
 ; Inno Setup script - builds a one-file installer (no admin rights needed).
 #define AppName "Cozy Disk Diary"
-#define AppVersion "1.0.0"
+#define AppVersion "1.1.0"
 
 [Setup]
 AppId={{7B3E2A64-5C1D-4F8A-9E2B-C01D1D150001}
